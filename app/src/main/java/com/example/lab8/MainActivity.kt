@@ -6,6 +6,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -53,61 +56,114 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
 fun TaskScreen(viewModel: TaskViewModel) {
     val tasks by viewModel.tasks.collectAsState()
-    val coroutineScope = rememberCoroutineScope()
     var newTaskDescription by remember { mutableStateOf("") }
-
+    var isEditing by remember { mutableStateOf(false) }
+    var taskBeingEdited by remember { mutableStateOf<Task?>(null) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        TextField(
-            value = newTaskDescription,
-            onValueChange = { newTaskDescription = it },
-            label = { Text("Nueva tarea") },
-            modifier = Modifier.fillMaxWidth()
+        Text(
+            text = "Mis Tareas 📝",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
+        // Campo de texto para nueva tarea o edición
+        OutlinedTextField(
+            value = newTaskDescription,
+            onValueChange = { newTaskDescription = it },
+            label = { Text(if (isEditing) "Editar tarea" else "Nueva tarea") },
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Button(
             onClick = {
                 if (newTaskDescription.isNotEmpty()) {
-                    viewModel.addTask(newTaskDescription)
+                    if (isEditing && taskBeingEdited != null) {
+                        viewModel.updateTask(taskBeingEdited!!, newTaskDescription)
+                        isEditing = false
+                        taskBeingEdited = null
+                    } else {
+                        viewModel.addTask(newTaskDescription)
+                    }
                     newTaskDescription = ""
                 }
             },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
         ) {
-            Text("Agregar tarea")
+            Text(if (isEditing) "Guardar cambios" else "Agregar tarea")
         }
-
 
         Spacer(modifier = Modifier.height(16.dp))
 
-
+        // Lista de tareas
         tasks.forEach { task ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                Text(text = task.description)
-                Button(onClick = { viewModel.toggleTaskCompletion(task) }) {
-                    Text(if (task.isCompleted) "Completada" else "Pendiente")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = task.description,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = if (task.isCompleted) "Completada ✅" else "Pendiente ⏳",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
+                    Row {
+                        // Botón para editar
+                        IconButton(onClick = {
+                            newTaskDescription = task.description
+                            isEditing = true
+                            taskBeingEdited = task
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Editar"
+                            )
+                        }
+
+                        // Botón para eliminar
+                        IconButton(onClick = {
+                            viewModel.deleteTask(task)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Eliminar"
+                            )
+                        }
+                    }
                 }
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
 
+        // Botón para eliminar todas las tareas
         Button(
-            onClick = { coroutineScope.launch { viewModel.deleteAllTasks() } },
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+            onClick = { viewModel.deleteAllTasks() },
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Eliminar todas las tareas")
+            Text("Eliminar todas las tareas 🗑️")
         }
     }
 }
